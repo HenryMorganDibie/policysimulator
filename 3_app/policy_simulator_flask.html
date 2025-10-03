@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Variable Economic Policy Simulator (Flask Integrated)</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#059669',
+                        'secondary': '#f97316', // Orange for Inflation
+                        'accent-blue': '#3b82f6', // Blue for GDP
+                        'accent-purple': '#8b5cf6', // Purple for Unemployment
+                        'background': '#f3f4f6',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom styles for better aesthetics and readability */
+        body {
+            background-color: #f3f4f6;
+        }
+        .card {
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #059669;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        /* Custom chart styling */
+        .chart-wrapper {
+            height: 200px; /* Reduced height for multiple charts */
+            width: 100%;
+        }
+    </style>
+</head>
+<body class="font-sans min-h-screen p-4 sm:p-8 flex justify-center items-start">
+
+    <div id="app" class="w-full max-w-6xl space-y-8">
+        <header class="text-center p-4 bg-white rounded-lg card">
+            <h1 class="text-3xl font-extrabold text-primary">Multi-Variable Policy Simulator</h1>
+            <p class="text-gray-600 mt-1">Adjust the Central Bank's Lending Rate for 2024 to simulate its combined effect on **Inflation**, **GDP Growth**, and **Unemployment** in 2025.</p>
+            <div id="loadingIndicator" class="mt-2 text-secondary font-semibold">Initializing...</div>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            
+            <!-- Policy Input Controls (Column 1) -->
+            <section class="lg:col-span-1 p-6 bg-white rounded-lg card space-y-6 h-full">
+                <h2 class="text-xl font-semibold text-gray-800 border-b pb-2">Policy Lever (2024)</h2>
+                
+                <div class="space-y-2">
+                    <label for="interestRate" class="block text-sm font-medium text-gray-700">Central Bank Lending Rate (%)</label>
+                    <input type="range" id="interestRate" min="10" max="50" step="0.5" value="25"
+                           class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer range-lg">
+                    <div class="flex justify-between text-xs text-gray-500">
+                        <span>10.0% (Low)</span>
+                        <span id="rateValue" class="text-primary font-bold text-base">25.0%</span>
+                        <span>50.0% (High)</span>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t">
+                    <button id="simulateButton"
+                            class="w-full bg-primary hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-150 ease-in-out focus:outline-none focus:ring-4 focus:ring-primary/50 disabled:bg-gray-400"
+                            disabled>
+                        Run Multi-Variable Simulation
+                    </button>
+                </div>
+            </section>
+
+            <!-- Results Display (Column 2-4, 3 columns) -->
+            <section class="lg:col-span-3 p-6 bg-white rounded-lg card space-y-6">
+                <h2 class="text-xl font-semibold text-gray-800 border-b pb-2">Simulation Results (2025 Forecast)</h2>
+                
+                <!-- Metrics Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Inflation -->
+                    <div class="p-3 bg-red-50 rounded-lg border-l-4 border-secondary">
+                        <span class="text-sm font-medium text-gray-600 block">Predicted Inflation</span>
+                        <span id="predictedInflation" class="text-2xl font-extrabold text-secondary">-- %</span>
+                    </div>
+                    <!-- GDP Growth -->
+                    <div class="p-3 bg-blue-50 rounded-lg border-l-4 border-accent-blue">
+                        <span class="text-sm font-medium text-gray-600 block">Predicted GDP Growth</span>
+                        <span id="predictedGDP" class="text-2xl font-extrabold text-accent-blue">-- %</span>
+                    </div>
+                    <!-- Unemployment Rate -->
+                    <div class="p-3 bg-purple-50 rounded-lg border-l-4 border-accent-purple">
+                        <span class="text-sm font-medium text-gray-600 block">Predicted Unemployment</span>
+                        <span id="predictedUnemployment" class="text-2xl font-extrabold text-accent-purple">-- %</span>
+                    </div>
+                </div>
+
+                <p id="commentary" class="text-gray-500 text-sm italic pt-2 border-t">
+                    Adjust the lending rate and press 'Run Simulation' to see the combined policy impact.
+                </p>
+
+                <!-- Visualization Grid -->
+                <div class="pt-4 border-t grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <h3 class="text-md font-semibold mb-1 text-secondary">Inflation History</h3>
+                        <div class="chart-wrapper"><canvas id="inflationChart"></canvas></div>
+                    </div>
+                    <div>
+                        <h3 class="text-md font-semibold mb-1 text-accent-blue">GDP Growth History</h3>
+                        <div class="chart-wrapper"><canvas id="gdpChart"></canvas></div>
+                    </div>
+                    <div>
+                        <h3 class="text-md font-semibold mb-1 text-accent-purple">Unemployment History</h3>
+                        <div class="chart-wrapper"><canvas id="unemploymentChart"></canvas></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module">
+        
+        // --- Mock Historical Data for Visualization (Updated with all metrics) ---
+        const MOCK_HISTORY = [
+            { year: 2020, inflation: 12.8, gdp: 0.8, unemployment: 9.0 },
+            { year: 2021, inflation: 17.0, gdp: 3.4, unemployment: 8.5 },
+            { year: 2022, inflation: 21.0, gdp: 3.1, unemployment: 7.8 },
+            { year: 2023, inflation: 25.5, gdp: 2.3, unemployment: 5.5 }, 
+            { year: 2024, inflation: 33.2, gdp: 2.5, unemployment: 4.3 }, // Estimated 2024
+        ];
+
+        let chartInstances = {};
+        
+        // --- UI Elements ---
+        const rateInput = document.getElementById('interestRate');
+        const rateValueDisplay = document.getElementById('rateValue');
+        const simulateButton = document.getElementById('simulateButton');
+        const predictedInflationDisplay = document.getElementById('predictedInflation');
+        const predictedGDPDisplay = document.getElementById('predictedGDP');
+        const predictedUnemploymentDisplay = document.getElementById('predictedUnemployment');
+        const commentaryElement = document.getElementById('commentary');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+
+        // --- Prediction Function (Calls the multi-variable Flask API) ---
+        async function runPrediction(lendingRate) {
+            const url = '/predict'; // Flask endpoint
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lending_rate: lendingRate })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Server prediction failed.');
+            }
+
+            const data = await response.json();
+            return data; // Returns {inflation: X, gdp_growth: Y, unemployment_rate: Z}
+        }
+        
+        function updateCommentary(results, currentRate) {
+            const { inflation, gdp_growth, unemployment_rate } = results;
+            let message = `With a Lending Rate of ${currentRate.toFixed(1)}%, the model (run on the Python back-end) forecasts:`;
+            message += `<br>Inflation: **${inflation.toFixed(2)}%**`;
+            message += `, GDP Growth: **${gdp_growth.toFixed(2)}%**`;
+            message += `, Unemployment: **${unemployment_rate.toFixed(2)}%**`;
+
+            let analysis = "";
+            if (currentRate > 35) {
+                analysis = " This very aggressive policy is strongly disinflationary but risks severely slowing GDP growth and potentially impacting jobs.";
+            } else if (currentRate < 15) {
+                analysis = " This highly accommodative policy is pro-growth but presents a significant risk of accelerating inflationary pressures.";
+            } else {
+                analysis = " This balanced policy aims to gradually cool inflation without excessively sacrificing economic growth or employment stability.";
+            }
+            commentaryElement.innerHTML = message + analysis;
+        }
+
+        // --- Chart Visualization ---
+
+        const CHART_CONFIGS = [
+            { id: 'inflationChart', target: 'inflation', label: 'Inflation Rate (%)', color: '#f97316' },
+            { id: 'gdpChart', target: 'gdp', label: 'GDP Growth (%)', color: '#3b82f6' },
+            { id: 'unemploymentChart', target: 'unemployment', label: 'Unemployment Rate (%)', color: '#8b5cf6' },
+        ];
+
+        async function initializeChart() {
+            loadingIndicator.textContent = "Loading Chart Library...";
+            // Load Chart.js library dynamically
+            if (typeof Chart === 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+                document.head.appendChild(script);
+                await new Promise(resolve => script.onload = resolve);
+            }
+            
+            CHART_CONFIGS.forEach(config => {
+                const ctx = document.getElementById(config.id).getContext('2d');
+                
+                const years = MOCK_HISTORY.map(d => d.year);
+                const dataPoints = MOCK_HISTORY.map(d => d[config.target]);
+
+                chartInstances[config.target] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [...years, '2025 (F)'],
+                        datasets: [{
+                            label: config.label,
+                            data: [...dataPoints, null], // Null placeholder for 2025 forecast
+                            borderColor: config.color,
+                            backgroundColor: config.color.replace(')', ', 0.1)').replace('rgb(', 'rgba('), // Use rgba for fill
+                            tension: 0.3,
+                            pointBackgroundColor: function(context) {
+                                const index = context.dataIndex;
+                                // Highlight the last known point (2024)
+                                return index === years.length - 1 ? '#059669' : config.color;
+                            }
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                title: { display: false }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { mode: 'index', intersect: false }
+                        }
+                    }
+                });
+            });
+
+            
+            loadingIndicator.classList.add('hidden');
+            simulateButton.disabled = false;
+        }
+
+        function updateCharts(predictedResults) {
+            // Mapping from prediction key to chart key
+            const updateMap = {
+                inflation: 'inflation',
+                gdp_growth: 'gdp',
+                unemployment_rate: 'unemployment'
+            };
+
+            for (const key in predictedResults) {
+                const chartKey = updateMap[key];
+                if (chartInstances[chartKey]) {
+                    const data = chartInstances[chartKey].data.datasets[0].data;
+                    // Update the last point in the data array (2025 Forecast)
+                    data[data.length - 1] = predictedResults[key];
+                    chartInstances[chartKey].update();
+                }
+            }
+        }
+
+        // --- Event Handlers ---
+        async function handleSimulation() {
+            simulateButton.disabled = true;
+            simulateButton.textContent = "Simulating all 3 variables...";
+            
+            const currentRate = parseFloat(rateInput.value);
+            
+            predictedInflationDisplay.textContent = `-- %`;
+            predictedGDPDisplay.textContent = `-- %`;
+            predictedUnemploymentDisplay.textContent = `-- %`;
+
+            try {
+                const results = await runPrediction(currentRate);
+                
+                // Update numerical results
+                predictedInflationDisplay.textContent = `${results.inflation.toFixed(2)} %`;
+                predictedGDPDisplay.textContent = `${results.gdp_growth.toFixed(2)} %`;
+                predictedUnemploymentDisplay.textContent = `${results.unemployment_rate.toFixed(2)} %`;
+                
+                updateCommentary(results, currentRate);
+                updateCharts(results);
+                
+            } catch (error) {
+                console.error("Simulation failed:", error);
+                commentaryElement.innerHTML = `<span class='text-red-600'>ERROR: Simulation failed. Check the Flask server terminal for details. (${error.message})</span>`;
+            } finally {
+                simulateButton.textContent = "Run Multi-Variable Simulation";
+                simulateButton.disabled = false;
+            }
+        }
+
+        function handleRateChange() {
+            const rate = parseFloat(rateInput.value);
+            rateValueDisplay.textContent = `${rate.toFixed(1)}%`;
+        }
+
+        // --- Initialization ---
+        window.onload = () => {
+            handleRateChange(); // Set initial value display
+            initializeChart();
+            
+            rateInput.addEventListener('input', handleRateChange);
+            simulateButton.addEventListener('click', handleSimulation);
+        };
+    </script>
+</body>
+</html>

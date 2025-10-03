@@ -147,6 +147,75 @@ My first and most critical challenge was building a clean, reliable foundation f
 - **Feature Engineering (Autoregressive Lagging):**  
   Structured the dataset so the model predicts year *t* using year *t−1* data:  
 
+"Forecast(t) ~ f(Policy(t−1), Inflation(t−1), GDP(t−1), Unemployment(t−1))"
+
+
+Final feature vector (**X**) consisted of these four lagged inputs.  
+
+---
+
+## 2. Phase II: Machine Learning Engineering and Model Persistence  
+
+The focus was on building resilient models that transition seamlessly into production.  
+
+### The Production-Ready Pipeline  
+
+I used the **Scikit-learn Pipeline** for all models (Inflation, GDP, Unemployment):  
+- **Feature Scaling:** `StandardScaler` ensured features (e.g., GDP in 10¹⁰ scale) did not overshadow rates.  
+- **Serialization:** Used `joblib` to serialize pipeline (scaler + model) into `.pkl` files. This guarantees identical transformations during training and live inference, eliminating training/serving skew.  
+
+### Model Performance and Evaluation  
+
+I trained three independent **Ridge Regression** models:  
+
+| Target Variable    | Algorithm      | Core Performance Metric (MSE) | Technical Conclusion |
+|--------------------|----------------|-------------------------------|----------------------|
+| **Unemployment**   | Ridge (Scaled) | ≈ **0.13**  | Exceptionally accurate; lagged features capture unemployment’s slow-moving nature. |
+| **Inflation**      | Ridge (Scaled) | ≈ **13.34** | Stable baseline forecast. Errors suggest missing external volatility factors. |
+| **GDP Growth**     | Ridge (Scaled) | ≈ **316.67** | High MSE confirms GDP prediction is influenced by external/non-linear shocks. |
+
+---
+
+## 3. Phase III: Application Architecture and Deployment  
+
+The final stage was transforming models into a **functional, user-facing product** with a client-server setup.  
+
+### Flask API Gateway (`3_app/app.py`)  
+
+- **Model Hosting:** On startup, Flask loads all `.pkl` pipelines into memory (zero disk latency).  
+- **RESTful Prediction Endpoint:**  
+- `/predict` accepts user `lending_rate` (POST request).  
+- Server pairs this input with lagged historical data.  
+- Runs all three pipelines sequentially.  
+- Returns a clean **JSON payload** with forecasts.  
+
+### Interactive Client (`3_app/policy_simulator_flask.html`)  
+
+- **Interface:**  
+- Policy Lever (slider) for user input.  
+- UI displays historical trends alongside new forecasts.  
+
+- **Asynchronous Communication:**  
+- JavaScript `fetch` API enables non-blocking communication with Flask.  
+
+- **Dynamic Visualization:**  
+- JSON response updates forecast panels & charts instantly.  
+- Creates a **real-time simulation experience**.  
+
+### Simulator Demonstration
+
+![Multi-Variable Policy Simulator Demo](assets/Multi-variable policy simulator.png)
+
+---
+
+## Final Note  
+
+This architecture **decouples** the:  
+- **Data Science Engine** (Python back-end)  
+- **Responsive UI** (HTML/JS front-end)  
+
+Resulting in a **secure, efficient, and professional demonstration** of the complete ML product lifecycle.  
+
 
 ---
 

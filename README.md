@@ -111,6 +111,44 @@ The simulator uses three separate **Ridge Regression** models, one for each targ
 This approach ensures consistency and robustness in the predictions.
 
 ---
+# Technical Deep Dive: My End-to-End MLOps Policy Simulator  
+
+This project represents a full-cycle journey, moving from messy, disparate raw data to a production-ready, interactive web application. I structured the entire workflow following rigorous **MLOps principles**, ensuring the solution is robust, repeatable, and maintainable.  
+
+---
+
+## 1. Phase I: Data Sourcing and Engineering (The Core Challenge)  
+
+My first and most critical challenge was building a clean, reliable foundation from highly unstructured economic data. I aggregated data from three primary public sources:  
+- **Central Bank (CBN)**  
+- **National Bureau of Statistics (NBS)**  
+- **World Bank (WB)**  
+
+### Data Acquisition and ETL (Extract, Transform, Load)  
+
+- **Extraction from Unstructured Sources:**  
+  A significant amount of the raw data, particularly historical interest rates and specific CPI figures, was contained within complex web tables or government PDF documents.  
+  I wrote Python routines to handle this initial extraction, carefully parsing and moving the data into manageable CSVs in my `1_data/raw` directory.  
+
+- **The Frequency Mismatch Problem:**  
+  My raw files had vastly different time steps:  
+  - Monthly (interest rates)  
+  - Quarterly (unemployment)  
+  - Annual (GDP)  
+
+  To solve this, I designed `data_merging_script.py` to:  
+  1. **Frequency Consolidation:** Downsample monthly/quarterly data into a single annual time-series frame.  
+  2. **Alignment and Joining:** Use **year** as the primary key for an inner join, ensuring the final `master_economic_data.csv` only contained complete yearly records (2002–2023).  
+
+### Exploratory Data Analysis (EDA) and Feature Insights  
+
+- **Temporal Integrity:** Verified sequence correctness for time-series forecasting.  
+- **Volatility & Collinearity:** Observed high volatility in Lending Interest Rate and Annual Inflation. Opted for **Ridge Regression** (L2 regularization) to stabilize coefficients and handle collinearity.  
+- **Feature Engineering (Autoregressive Lagging):**  
+  Structured the dataset so the model predicts year *t* using year *t−1* data:  
+
+
+---
 
 ## License
 

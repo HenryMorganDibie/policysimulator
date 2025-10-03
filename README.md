@@ -204,7 +204,7 @@ The final stage was transforming models into a **functional, user-facing product
 
 ### Simulator Demonstration
 
-![Multi-Variable Policy Simulator Demo](assets/Multi-variable policy simulator.png)
+![Multi-Variable Policy Simulator Demo](assets/simulator-demo.png)
 
 ---
 

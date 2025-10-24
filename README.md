@@ -1,72 +1,160 @@
-# Multi-Variable Economic Policy Simulator
+# 🧠 Multi-Variable Economic Policy Simulator: An MLOps Demonstration
 
-This project demonstrates a complete end-to-end data science pipeline, from data preparation and model training to the deployment of an interactive, data-driven web application. The application simulates the effects of a Central Bank's lending rate policy on key economic indicators: **Inflation**, **GDP Growth**, and the **Unemployment Rate**.
+This project showcases a complete **end-to-end data science pipeline**, from data preparation and model training to the deployment of an interactive, data-driven web application.  
+The entire workflow follows rigorous **MLOps principles**, ensuring the solution is **robust, repeatable, and maintainable**.
 
-## Key Features
+The application simulates the effects of a **Central Bank's lending rate policy** on key Nigerian economic indicators:
 
--   **Data-Driven Modeling:** Utilizes a real-world dataset of macroeconomic indicators to train predictive machine learning models.
--   **End-to-End Pipeline:** Showcases a complete workflow from raw data to a deployed web application.
--   **Multi-Variable Prediction:** The simulator runs three distinct predictive models to forecast Inflation, GDP, and Unemployment in a single action.
--   **Interactive Web Application:** A simple, intuitive web interface built with **Flask** and **HTML/JavaScript** that allows a user to adjust a "policy lever" (the lending rate) and see the immediate forecasted results.
--   **Model-in-Production Simulation:** The Flask back-end acts as a REST API, providing predictions from the trained models, mimicking a production environment.
--   **Consistent & Scalable Architecture:** The models are saved as `joblib` files and loaded via a robust `Pipeline` that includes feature scaling, ensuring consistency between training and prediction.
+- **Inflation**
+- **GDP Growth**
+- **Unemployment Rate**
 
-## Project Structure
+---
+
+## 🚀 Key Features & Engineered Solutions
+
+| **Feature** | **Description & Technical Value Added** |
+|--------------|-----------------------------------------|
+| **Consistent & Robust Inference** | Models are saved as a **Scikit-learn Pipeline (Scaler + Ridge)** and loaded via `joblib`, guaranteeing identical feature transformation between training and live prediction (**zero training/serving skew**). |
+| **Economic Realism Layer (Critical)** | The Flask back-end applies **realistic clamping (bounds)** to the model's raw output, preventing mathematically correct but economically nonsensical predictions (e.g., 22% GDP growth). |
+| **Multi-Variable Prediction** | The simulator runs three distinct predictive models to forecast **Inflation**, **GDP**, and **Unemployment** in a single action via a REST API. |
+| **Data-Driven Modeling** | Utilizes a real-world dataset aggregated from **CBN**, **NBS**, and the **World Bank** to train predictive machine learning models. |
+| **Interactive Web Application** | A simple, intuitive web interface built with **Flask** and **HTML/JavaScript** for real-time, interactive policy simulation. |
+
+---
+
+## 🧱 Project Structure
 
 The project is organized into logical directories to separate concerns and ensure clarity.
 
 <pre lang="markdown">
 PolicySimulator/
 ├── 1_data/
-│   ├── raw/
-        └── cbn_interest_rates.csv
+│   ├── raw/                      # Unprocessed files from data sources
+│   │   └── cbn_interest_rates.csv
 │   │   └── cbn_interest_rates.pdf
-        └── nbs_cpi_june_2025.pdf        # The raw, unprocessed data
-│   └── processed/
-        └── cleaned_cbn_interest_rates.csv
-│       └── master_economic_data.csv # Merged and cleaned data
-        └── nbs_cpi_data.csv
-        └── world_bank_data.csv
+│   │   └── nbs_cpi_june_2025.pdf
+│   │   └── ...
+│   ├── processed/                # Cleaned and harmonized datasets
+│   │   └── cleaned_cbn_interest_rates.csv
+│   │   └── master_economic_data.csv # Final merged, time-aligned data (used for training)
+│   │   └── ...
+│   └── download_cbn_data.py      # Script to download/extract CBN data
+│   └── download_nbs_data.py      # Script to download/extract NBS data
+│   └── download_world_bank_data.py # Script to download/extract WB data
+│   └── clean_cbn_data.py         # Script for cleaning specific CBN data
 ├── 2_models/
-│   ├── inflation_ridge_model.pkl    # Trained model for Inflation
-│   ├── gdp_ridge_model.pkl          # Trained model for GDP Growth
-│   └── unemployment_ridge_model.pkl # Trained model for Unemployment
+│   ├── gdp_ridge_model.pkl          # Trained Ridge Pipeline for GDP Growth
+│   ├── inflation_ridge_model.pkl    # Trained Ridge Pipeline for Inflation
+│   └── unemployment_ridge_model.pkl # Trained Ridge Pipeline for Unemployment
 ├── 3_app/
-│   ├── app.py                     # The Flask application backend
-│   └── policy_simulator_flask.html  # The web front-end
-└── 4_notebooks/
-├── data_preparation.py        # Script for data cleaning and merging
-└── train_all_models.py      # Script for training all three predictive models
+│   ├── app.py                       # The Flask application backend and prediction API
+│   └── policy_simulator_flask.html  # The web front-end (HTML/JS)
+│   └── requirements.txt             # Project dependencies
+├── 4_notebooks/
+│   ├── data_merging_script.py       # Script for combining all processed data into master_economic_data.csv
+│   └── train_all_models.py          # Script for training and saving the Pipeline models
+└── assets/                         # Screenshots and demonstration images
+└── README.md
 </pre>
 
-## Getting Started
 
-Follow these steps to set up and run the economic policy simulator on your local machine.
+---
 
-### Prerequisites
+# ⚙️ Technical Deep Dive
 
--   Python 3.8+
+## **Phase I: Data Sourcing and Engineering**
+
+The primary challenge was **integrating and aligning data** from **CBN**, **NBS**, and the **World Bank**, each using vastly different time steps (Monthly, Quarterly, Annual).
+
+### 🧩 Feature Engineering: The Autoregressive Approach
+
+To enable forecasting, the dataset was explicitly structured so the model predicts year *t* using the previous year's *t-1* data (**Autoregressive Lagging**):
+
+$$
+\text{Forecast}(t) \sim f(\text{LendingRate}(t), \text{Inflation}_{t-1}, \text{GDP}_{t-1}, \text{Unemployment}_{t-1})
+$$
+
+The `data_merging_script.py` was designed to handle **Frequency Consolidation and Alignment**, ensuring the final `master_economic_data.csv` only contained **complete yearly records (2002–2023)**.
+
+---
+
+## **Phase II: Machine Learning Engineering and Persistence**
+
+### 🧠 The Production-Ready Pipeline
+
+All three models were serialized using a **Scikit-learn Pipeline** for robustness against multicollinearity and extreme inputs:
+
+- **StandardScaler:** Ensures features are equally weighted during regularization.  
+- **Ridge Regression:** Provides stability (**L2 regularization**) to prevent coefficient explosion when policy inputs (like the lending rate) are outside the historical training range.
+
+This pipeline structure guarantees the **consistency required for production MLOps**.
+
+---
+
+### 📊 Model Evaluation and Clamping Rationale
+
+Raw model predictions were bounded based on **structural economic limits**:
+
+| **Target Variable** | **Clamping Rationale** | **Bounds Applied** |
+|----------------------|------------------------|--------------------|
+| **Unemployment** | 4.0% floor is implausible for Nigeria. | Min **8.0%**, Max **40.0%** |
+| **Inflation** | Must account for structural inflation but prevent unrealistic hyperinflation forecasts. | Min **15.0%**, Max **40.0%** |
+| **GDP Growth** | Linear models over-extrapolate. Prevents impossible growth (>5%) or catastrophic recession (<-5%). | Min **-5.0%**, Max **5.0%** |
+
+---
+
+## **Phase III: Application Architecture and Realism Layer**
+
+### 🌐 Flask API Gateway (`3_app/app.py`): The Realism Layer
+
+The Flask server is the API gateway that hosts the models and applies the bounds:
+
+$$
+\text{GDP}_\text{Forecast} = \max(-5.0, \min(5.0, \text{GDP}_\text{raw}))
+$$
+
+$$
+\text{Inflation}_\text{Forecast} = \max(15.0, \min(40.0, \text{Inflation}_\text{raw}))
+$$
+
+$$
+\text{Unemployment}_\text{Forecast} = \max(8.0, \min(40.0, \text{Unemployment}_\text{raw}))
+$$
+
+This engineering step transforms the project into a **credible policy risk assessment tool** by imposing **real-world constraints** on mathematical outputs.
+
+---
+
+# 🧮 Getting Started
+
+## ✅ Prerequisites
+
+- **Python 3.8+**
+- **pip** (Python package installer)
+
+---
+
+## 🧰 Installation
+
+### Clone the Repository
+
 ```bash
--   `pip` (Python package installer)
+git clone https://github.com/HenryMorganDibie/policysimulator.git
+cd PolicySimulator
 ```
-### Installation
 
-1.  **Clone the Repository:**
-    ```bash
-    git clone [https://github.com/HenryMorganDibie/policysimulator.git](https://github.com/your-username/PolicySimulator.git)
-    cd PolicySimulator
-    ```
+**Create and Activate a Virtual Environment**
 
-2.  **Create and Activate a Virtual Environment:**
-    ```bash
-    python -m venv .venv
-    # On Windows:
-    .\.venv\Scripts\activate
-    # On macOS/Linux:
-    source .venv/bin/activate
-    ```
+```bash
+python -m venv .venv
+# On Windows:
+.\.venv\Scripts\activate
+# On macOS/Linux:
+source .venv/bin/activate
+```
 
-3.  **Install Dependencies:**
+**Install Dependencies:**
     ```bash
     pip install pandas scikit-learn Flask joblib
     ```
@@ -76,15 +164,15 @@ Follow these steps to set up and run the economic policy simulator on your local
 The simulator is run in two stages: first, the data pipeline and model training, and then the web application.
 
 1.  **Run the Data Pipeline:**
-    Execute the data preparation script to clean and merge the raw data.
+    Execute the data merging script to clean and merge the raw data.
     ```bash
-    python 4_notebooks/data_preparation.py
+    python 4_notebooks/data_merging.py
     ```
 
 2.  **Train the Predictive Models:**
     Run the model training script to generate the three `.pkl` model files in the `2_models` directory.
     ```bash
-    python 4_notebooks/retrain_all_models.py
+    python 4_notebooks/train_all_models.py
     ```
 
 3.  **Start the Flask Web Application:**
@@ -176,18 +264,42 @@ I trained three independent **Ridge Regression** models:
 
 ---
 
-## 3. Phase III: Application Architecture and Deployment  
+## 3. Phase III: Application Architecture and Realism Layer
 
-The final stage was transforming models into a **functional, user-facing product** with a client-server setup.  
+The final stage transformed the persistent models into a **functional, user-facing product** with an added layer of **economic realism**.
 
-### Flask API Gateway (`3_app/app.py`)  
+### Flask API Gateway (`3_app/app.py`) with Realism Layer
 
-- **Model Hosting:** On startup, Flask loads all `.pkl` pipelines into memory (zero disk latency).  
-- **RESTful Prediction Endpoint:**  
-- `/predict` accepts user `lending_rate` (POST request).  
-- Server pairs this input with lagged historical data.  
-- Runs all three pipelines sequentially.  
-- Returns a clean **JSON payload** with forecasts.  
+The Flask server hosts the models and acts as the **prediction API**.
+
+#### Core Features
+
+- **Hosting:** Loads all `.pkl` pipelines into memory on startup (zero disk latency).  
+- **Prediction:** The `/predict` endpoint receives the user’s `lending_rate`, runs all three pipelines sequentially, and returns a JSON payload.  
+- **Economic Clamping (Critical):** Before returning the results, the server applies bounds to the raw predictions, elevating the tool's credibility by imposing real-world constraints.
+
+$$
+\mathbf{GDP: \max(-5.0, \min(5.0, GDP_{raw}))}
+$$
+
+$$
+\mathbf{Inflation: \max(15.0, \min(40.0, Inflation_{raw}))}
+$$
+
+---
+
+## Simulation Results and Policy Analysis 📈
+
+The core value of the simulator is demonstrated by comparing the outcomes of different policy choices (all figures are **2025 forecasts**, with clamping applied):
+
+| Scenario | Lending Rate | Predicted Inflation | Predicted GDP Growth | Policy Trade-Off Demonstrated |
+|-----------|---------------|---------------------|----------------------|-------------------------------|
+| **Aggressive** | **50.0%** | **15.00%** (Clamped Min) | **5.00%** (Clamped Max) | Extreme Disinflation: Minimizes inflation risk but pushes GDP/jobs to the recessionary constraint. |
+| **Moderate** | **25.0%** | **21.79%** | **5.00%** (Clamped Max) | Attempted Balance: Achieves moderate disinflation while optimizing for maximum plausible growth. |
+| **Accommodative** | **10.0%** | **34.25%** | **-5.00%** (Clamped Min) | Inflationary Risk: The attempt to stimulate growth results in maximum plausible inflation and a structural recession. |
+
+The results prove the model’s **sensitivity to the lending rate** and confirm that **GDP and Unemployment outcomes are highly inelastic**, immediately hitting their structural bounds under extreme policy settings.
+
 
 ### Interactive Client (`3_app/policy_simulator_flask.html`)  
 
@@ -204,11 +316,13 @@ The final stage was transforming models into a **functional, user-facing product
 
 ### Simulator Demonstration
 
-![Multi-Variable Policy Simulator Demo](assets/simulator-demo.png)
+![Multi-Variable Policy Simulator Demo](assets/Multi-Variable%20Policy%20Simulator%20at%2010%25.png)
+![Multi-Variable Policy Simulator Demo](assets/Multi-Variable%20Policy%20Simulator%20at%2025%25.png)
+![Multi-Variable Policy Simulator Demo](assets/Multi-Variable%20Policy%20Simulator%20at%2050%25.png)
 
 ---
 
-## Final Note  
+## 4. Final Note  
 
 This architecture **decouples** the:  
 - **Data Science Engine** (Python back-end)  

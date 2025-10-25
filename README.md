@@ -61,144 +61,6 @@ PolicySimulator/
 
 ---
 
-# ⚙️ Technical Deep Dive
-
-## **Phase I: Data Sourcing and Engineering**
-
-The primary challenge was **integrating and aligning data** from **CBN**, **NBS**, and the **World Bank**, each using vastly different time steps (Monthly, Quarterly, Annual).
-
-### 🧩 Feature Engineering: The Autoregressive Approach
-
-To enable forecasting, the dataset was explicitly structured so the model predicts year *t* using the previous year's *t-1* data (**Autoregressive Lagging**):
-
-$$
-\text{Forecast}(t) \sim f(\text{LendingRate}(t), \text{Inflation}_{t-1}, \text{GDP}_{t-1}, \text{Unemployment}_{t-1})
-$$
-
-The `data_merging_script.py` was designed to handle **Frequency Consolidation and Alignment**, ensuring the final `master_economic_data.csv` only contained **complete yearly records (2002–2023)**.
-
----
-
-## **Phase II: Machine Learning Engineering and Persistence**
-
-### 🧠 The Production-Ready Pipeline
-
-All three models were serialized using a **Scikit-learn Pipeline** for robustness against multicollinearity and extreme inputs:
-
-- **StandardScaler:** Ensures features are equally weighted during regularization.  
-- **Ridge Regression:** Provides stability (**L2 regularization**) to prevent coefficient explosion when policy inputs (like the lending rate) are outside the historical training range.
-
-This pipeline structure guarantees the **consistency required for production MLOps**.
-
----
-
-### 📊 Model Evaluation and Clamping Rationale
-
-Raw model predictions were bounded based on **structural economic limits**:
-
-| **Target Variable** | **Clamping Rationale** | **Bounds Applied** |
-|----------------------|------------------------|--------------------|
-| **Unemployment** | 4.0% floor is implausible for Nigeria. | Min **8.0%**, Max **40.0%** |
-| **Inflation** | Must account for structural inflation but prevent unrealistic hyperinflation forecasts. | Min **15.0%**, Max **40.0%** |
-| **GDP Growth** | Linear models over-extrapolate. Prevents impossible growth (>5%) or catastrophic recession (<-5%). | Min **-5.0%**, Max **5.0%** |
-
----
-
-## **Phase III: Application Architecture and Realism Layer**
-
-### 🌐 Flask API Gateway (`3_app/app.py`): The Realism Layer
-
-The Flask server is the API gateway that hosts the models and applies the bounds:
-
-$$
-\text{GDP}_\text{Forecast} = \max(-5.0, \min(5.0, \text{GDP}_\text{raw}))
-$$
-
-$$
-\text{Inflation}_\text{Forecast} = \max(15.0, \min(40.0, \text{Inflation}_\text{raw}))
-$$
-
-$$
-\text{Unemployment}_\text{Forecast} = \max(8.0, \min(40.0, \text{Unemployment}_\text{raw}))
-$$
-
-This engineering step transforms the project into a **credible policy risk assessment tool** by imposing **real-world constraints** on mathematical outputs.
-
----
-
-# 🧮 Getting Started
-
-## ✅ Prerequisites
-
-- **Python 3.8+**
-- **pip** (Python package installer)
-
----
-
-## 🧰 Installation
-
-### Clone the Repository
-
-```bash
-git clone https://github.com/HenryMorganDibie/policysimulator.git
-cd PolicySimulator
-```
-
-**Create and Activate a Virtual Environment**
-
-```bash
-python -m venv .venv
-# On Windows:
-.\.venv\Scripts\activate
-# On macOS/Linux:
-source .venv/bin/activate
-```
-
-**Install Dependencies:**
-    ```bash
-    pip install pandas scikit-learn Flask joblib
-    ```
-
-### Usage
-
-The simulator is run in two stages: first, the data pipeline and model training, and then the web application.
-
-1.  **Run the Data Pipeline:**
-    Execute the data merging script to clean and merge the raw data.
-    ```bash
-    python 4_notebooks/data_merging.py
-    ```
-
-2.  **Train the Predictive Models:**
-    Run the model training script to generate the three `.pkl` model files in the `2_models` directory.
-    ```bash
-    python 4_notebooks/train_all_models.py
-    ```
-
-3.  **Start the Flask Web Application:**
-    Navigate to the `3_app` directory and start the Flask server.
-    ```bash
-    python 3_app/app.py
-    ```
-
-4.  **Access the Simulator:**
-    Open your web browser and navigate to the following address:
-    ```
-    [http://127.0.0.1:5000/](http://127.0.0.1:5000/)
-    ```
-
-You can now interact with the simulator by adjusting the lending rate and observing the forecasted impact on the economy.
-
-## Model & Methodology
-
-The simulator uses three separate **Ridge Regression** models, one for each target variable (Inflation, GDP Growth, and Unemployment Rate). The models are trained using a `Pipeline` that first applies a `StandardScaler` to the input features, which include the current lending rate and the lagged values of the economic indicators.
-
--   **Features (X):** Lending Interest Rate, Lagged Inflation, Lagged Unemployment Rate, Lagged GDP Growth.
--   **Targets (y):** Annual Inflation, Annual GDP Growth, Annual Unemployment Rate.
-
-This approach ensures consistency and robustness in the predictions.
-
----
 # Technical Deep Dive: My End-to-End MLOps Policy Simulator  
 
 This project represents a full-cycle journey, moving from messy, disparate raw data to a production-ready, interactive web application. I structured the entire workflow following rigorous **MLOps principles**, ensuring the solution is robust, repeatable, and maintainable.  
@@ -300,17 +162,92 @@ The core value of the simulator is demonstrated by comparing the outcomes of dif
 
 The results prove the model’s **sensitivity to the lending rate** and confirm that **GDP and Unemployment outcomes are highly inelastic**, immediately hitting their structural bounds under extreme policy settings.
 
+---
+
+# 🧮 Getting Started
+
+## ✅ Prerequisites
+
+- **Python 3.8+**
+- **pip** (Python package installer)
+
+---
+
+## 🧰 Installation
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/HenryMorganDibie/policysimulator.git
+cd PolicySimulator
+```
+
+**Create and Activate a Virtual Environment**
+
+```bash
+python -m venv .venv
+# On Windows:
+.\.venv\Scripts\activate
+# On macOS/Linux:
+source .venv/bin/activate
+```
+
+**Install Dependencies:**
+    ```bash
+    pip install pandas scikit-learn Flask joblib
+    ```
+
+### Usage
+
+The simulator is run in two stages: first, the data pipeline and model training, and then the web application.
+
+1.  **Run the Data Pipeline:**
+    Execute the data merging script to clean and merge the raw data.
+    ```bash
+    python 4_notebooks/data_merging.py
+    ```
+
+2.  **Train the Predictive Models:**
+    Run the model training script to generate the three `.pkl` model files in the `2_models` directory.
+    ```bash
+    python 4_notebooks/train_all_models.py
+    ```
+
+3.  **Start the Flask Web Application:**
+    Navigate to the `3_app` directory and start the Flask server.
+    ```bash
+    python 3_app/app.py
+    ```
+
+4.  **Access the Simulator:**
+    Open your web browser and navigate to the following address:
+    ```
+    [http://127.0.0.1:5000/](http://127.0.0.1:5000/)
+    ```
+
+You can now interact with the simulator by adjusting the lending rate and observing the forecasted impact on the economy.
+
+## Model & Methodology
+
+The simulator uses three separate **Ridge Regression** models, one for each target variable (Inflation, GDP Growth, and Unemployment Rate). The models are trained using a `Pipeline` that first applies a `StandardScaler` to the input features, which include the current lending rate and the lagged values of the economic indicators.
+
+-   **Features (X):** Lending Interest Rate, Lagged Inflation, Lagged Unemployment Rate, Lagged GDP Growth.
+-   **Targets (y):** Annual Inflation, Annual GDP Growth, Annual Unemployment Rate.
+
+This approach ensures consistency and robustness in the predictions.
+
+---
 
 ### Interactive Client (`3_app/policy_simulator_flask.html`)  
 
-- **Interface:**  
+ **Interface:**  
 - Policy Lever (slider) for user input.  
 - UI displays historical trends alongside new forecasts.  
 
-- **Asynchronous Communication:**  
+ **Asynchronous Communication:**  
 - JavaScript `fetch` API enables non-blocking communication with Flask.  
 
-- **Dynamic Visualization:**  
+ **Dynamic Visualization:**  
 - JSON response updates forecast panels & charts instantly.  
 - Creates a **real-time simulation experience**.  
 
@@ -322,7 +259,7 @@ The results prove the model’s **sensitivity to the lending rate** and confirm 
 
 ---
 
-## 4. Final Note  
+##  Final Note  
 
 This architecture **decouples** the:  
 - **Data Science Engine** (Python back-end)  
